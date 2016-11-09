@@ -1,7 +1,7 @@
 DEPENDPATH += .
 INCLUDEPATH += .
 TEMPLATE = app
-QT += gui declarative
+QT += gui core widgets
 
 FORMS += \
     md5calculator.ui
