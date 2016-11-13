@@ -1,6 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS // or use sprintf_s
 #include <QApplication>
-#include "MD5Calculator.h"
+#include "md5calculator.h"
 
 int main(int argc, char* argv[])
 {

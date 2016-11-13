@@ -3,6 +3,9 @@
 #include "ui_md5calculator.h"
 #include "md5.h"
 #include "SHA1.h"
+#ifndef _WINDOWS
+#include <unistd.h>
+#endif
 
 Md5Calculator::Md5Calculator(QWidget *parent) :
     QWidget(parent),
@@ -94,7 +97,11 @@ void Md5Calculator::onThreadEnded()
 {
     m_pWorkThread->exit();
     while (m_pWorkThread->isRunning())
+    #ifdef _WINDOWS
         Sleep(1);
+    #else
+        usleep(1000);
+    #endif
 
     if (m_pWorkThread->isFinished())
     {
