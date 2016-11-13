@@ -21,6 +21,7 @@ RESOURCES += \
     Icons.qrc
 
 win32:RC_ICONS += md5.ico
+win32:DEFINES += "_WINDOWS"
 
 CONFIG(release, debug|release): CONFIG += release
 CONFIG(debug, debug|release): CONFIG += debug
