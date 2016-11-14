@@ -3,6 +3,8 @@ INCLUDEPATH += .
 TEMPLATE = app
 QT += gui core widgets
 
+CONFIG += c++11
+
 FORMS += \
     md5calculator.ui
 
