@@ -197,7 +197,7 @@ void WorkThread::run()
         uBytesProcessed += uRead;
         emit HashProgressChanged(static_cast<double>(uBytesProcessed)/uFileSize);
 
-        if(uRead < MD5_MAX_FILE_BUFFER)
+        if(uRead == 0)
             break;
     }
     delete[] pFileBuffer;
