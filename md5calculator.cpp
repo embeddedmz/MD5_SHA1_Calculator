@@ -24,6 +24,7 @@ Md5Calculator::Md5Calculator(QWidget *parent) :
     connect(ui->uiCopySHA1Btn, SIGNAL(clicked()), this, SLOT(CopySHA1HashToClipboard()));
     connect(ui->uiPasteBtn, SIGNAL(clicked()), this, SLOT(PasteFromClipboard()));
     connect(ui->uiVerifyBtn, SIGNAL(clicked()), this, SLOT(VerifyHash()));
+    connect(ui->uiCancelBtn, &QPushButton::clicked, this, &Md5Calculator::CancelHashGeneration);
 }
 
 void Md5Calculator::OpenAndHash()
@@ -39,6 +40,7 @@ void Md5Calculator::OpenAndHash()
         ui->uiCopySHA1Btn->setEnabled(false);
         ui->uiVerifyBtn->setEnabled(false);
         ui->uiPasteBtn->setEnabled(false);
+        ui->uiCancelBtn->setEnabled(true);
         ui->uiPB->setValue(0);
 
         m_pWorkThread = new WorkThread(this, ui->uiFile->text());
@@ -82,6 +84,14 @@ void Md5Calculator::VerifyHash()
         QMessageBox::warning(this, tr("Not match"), tr("Hash does not match !"));
 }
 
+void Md5Calculator::CancelHashGeneration()
+{
+    if (m_pWorkThread)
+    {
+        m_pWorkThread->requestInterruption();
+    }
+}
+
 void Md5Calculator::onHashProgressChanged(double dProgression)
 {
     ui->uiPB->setValue(dProgression*100);
@@ -95,13 +105,7 @@ void Md5Calculator::onThreadStarted()
 
 void Md5Calculator::onThreadEnded()
 {
-    m_pWorkThread->exit();
-    while (m_pWorkThread->isRunning())
-    #ifdef _WINDOWS
-        Sleep(1);
-    #else
-        usleep(1000);
-    #endif
+    m_pWorkThread->wait();
 
     if (m_pWorkThread->isFinished())
     {
@@ -112,7 +116,9 @@ void Md5Calculator::onThreadEnded()
     ui->uiCopyMD5Btn->setEnabled(true);
     ui->uiCopySHA1Btn->setEnabled(true);
     ui->uiVerifyBtn->setEnabled(true);
+    ui->uiCancelBtn->setEnabled(false);
     ui->uiPasteBtn->setEnabled(true);
+    ui->uiPB->setValue(0);
 }
 
 void Md5Calculator::onDialogPopup(AppPopupDialog eDialog)
@@ -183,7 +189,7 @@ void WorkThread::run()
 
     const size_t uFileSize = file.size();
     size_t uBytesProcessed = 0;
-    while(true)
+    while (!QThread::currentThread()->isInterruptionRequested())
     {
         const size_t uRead = file.read(pFileBuffer, MD5_MAX_FILE_BUFFER);
 
@@ -202,18 +208,21 @@ void WorkThread::run()
     }
     delete[] pFileBuffer;
 
-    // Finalize both hashes
-    MD5Object.finalize();
-    sha1.Final();
+    if (!QThread::currentThread()->isInterruptionRequested())
+    {
+        // Finalize both hashes
+        MD5Object.finalize();
+        sha1.Final();
 
-    // Emit to the GUI computed MD5 hash
-    std::string strHash = MD5Object.hexdigest();
-    emit MD5Hash(QString::fromStdString(strHash).toUpper());
+        // Emit to the GUI computed MD5 hash
+        std::string strHash = MD5Object.hexdigest();
+        emit MD5Hash(QString::fromStdString(strHash).toUpper());
 
-    // Emit to the GUI computed SHA1 hash
-    strHash.clear();
-    sha1.ReportHashStl(strHash, CSHA1::REPORT_HEX_SHORT);
-    emit SHA1Hash(QString::fromLocal8Bit(strHash.c_str()).toUpper());
+        // Emit to the GUI computed SHA1 hash
+        strHash.clear();
+        sha1.ReportHashStl(strHash, CSHA1::REPORT_HEX_SHORT);
+        emit SHA1Hash(QString::fromLocal8Bit(strHash.c_str()).toUpper());
+    }
 
     file.close();
 }

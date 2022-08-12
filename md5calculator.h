@@ -34,6 +34,7 @@ private slots:
     void CopySHA1HashToClipboard();
     void PasteFromClipboard();
     void VerifyHash();
+    void CancelHashGeneration();
 
     void onThreadStarted();
     void onThreadEnded();
