@@ -11,13 +11,15 @@ FORMS += \
 HEADERS += \
     md5calculator.h \
     md5.h \
-    SHA1.h
+    SHA1.h \
+    sha256.h
 
 SOURCES += \
     md5calculator.cpp \
     main.cpp \
     md5.cpp \
-    SHA1.cpp
+    SHA1.cpp \
+    sha256.cpp
 
 RESOURCES += \
     Icons.qrc

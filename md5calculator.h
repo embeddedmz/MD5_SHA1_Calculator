@@ -32,6 +32,7 @@ private slots:
     void OpenAndHash();
     void CopyMD5HashToClipboard();
     void CopySHA1HashToClipboard();
+    void CopySHA256HashToClipboard();
     void PasteFromClipboard();
     void VerifyHash();
     void CancelHashGeneration();
@@ -41,6 +42,7 @@ private slots:
     void onHashProgressChanged(double);
     void onMD5HashReceived(QString);
     void onSHA1HashReceived(QString);
+    void onSHA256HashReceived(QString);
     void onDialogPopup(AppPopupDialog);
 
 private:
@@ -65,6 +67,7 @@ signals:
     void HashProgressChanged(double);
     void MD5Hash(QString);
     void SHA1Hash(QString);
+    void SHA256Hash(QString);
     void dialogPopup(AppPopupDialog);
 
 private:

@@ -1,11 +1,14 @@
-#include <string>
 #include "md5calculator.h"
 #include "ui_md5calculator.h"
 #include "md5.h"
 #include "SHA1.h"
+#include "sha256.h"
 #ifndef _WINDOWS
 #include <unistd.h>
 #endif
+
+#include <cstdlib>
+#include <string>
 
 Md5Calculator::Md5Calculator(QWidget *parent) :
     QWidget(parent),
@@ -22,6 +25,7 @@ Md5Calculator::Md5Calculator(QWidget *parent) :
     connect(ui->uiBrowseBtn, SIGNAL(clicked()), this, SLOT(OpenAndHash()));
     connect(ui->uiCopyMD5Btn, SIGNAL(clicked()), this, SLOT(CopyMD5HashToClipboard()));
     connect(ui->uiCopySHA1Btn, SIGNAL(clicked()), this, SLOT(CopySHA1HashToClipboard()));
+    connect(ui->uiCopySHA256Btn, &QPushButton::clicked, this, &Md5Calculator::CopySHA256HashToClipboard);
     connect(ui->uiPasteBtn, SIGNAL(clicked()), this, SLOT(PasteFromClipboard()));
     connect(ui->uiVerifyBtn, SIGNAL(clicked()), this, SLOT(VerifyHash()));
     connect(ui->uiCancelBtn, &QPushButton::clicked, this, &Md5Calculator::CancelHashGeneration);
@@ -38,6 +42,7 @@ void Md5Calculator::OpenAndHash()
         ui->uiBrowseBtn->setEnabled(false);
         ui->uiCopyMD5Btn->setEnabled(false);
         ui->uiCopySHA1Btn->setEnabled(false);
+        ui->uiCopySHA256Btn->setEnabled(false);
         ui->uiVerifyBtn->setEnabled(false);
         ui->uiPasteBtn->setEnabled(false);
         ui->uiCancelBtn->setEnabled(true);
@@ -49,6 +54,7 @@ void Md5Calculator::OpenAndHash()
         connect(m_pWorkThread, SIGNAL(finished()), this, SLOT(onThreadEnded()));
         connect(m_pWorkThread, SIGNAL(MD5Hash(QString)), this, SLOT(onMD5HashReceived(QString)));
         connect(m_pWorkThread, SIGNAL(SHA1Hash(QString)), this, SLOT(onSHA1HashReceived(QString)));
+        connect(m_pWorkThread, &WorkThread::SHA256Hash, this, &Md5Calculator::onSHA256HashReceived);
         connect(m_pWorkThread, SIGNAL(dialogPopup(AppPopupDialog)), this, SLOT(onDialogPopup(AppPopupDialog)));
         m_pWorkThread->start();
     }
@@ -68,6 +74,13 @@ void Md5Calculator::CopySHA1HashToClipboard()
     QMessageBox::information(this, tr("Information"), tr("SHA1 Checksum has been copied to clipboard"));
 }
 
+void Md5Calculator::CopySHA256HashToClipboard()
+{
+    QClipboard* clipboard = QApplication::clipboard();
+    clipboard->setText(ui->uiSHA256->text());
+    QMessageBox::information(this, tr("Information"), tr("SHA256 Checksum has been copied to clipboard"));
+}
+
 void Md5Calculator::PasteFromClipboard()
 {
     QClipboard* clipboard = QApplication::clipboard();
@@ -79,7 +92,9 @@ void Md5Calculator::VerifyHash()
     if (ui->uiHash->text().toUpper() == ui->uiMD5->text())
         QMessageBox::information(this, tr("Matched"), tr("MD5 Hash Matched."));
     else if (ui->uiHash->text().toUpper() == ui->uiSHA1->text())
-        QMessageBox::information(this, tr("Matched"), tr("SHA1 Hash Matched."));
+        QMessageBox::information(this, tr("Matched"), tr("SHA-1 Hash Matched."));
+    else if (ui->uiHash->text().toUpper() == ui->uiSHA256->text())
+        QMessageBox::information(this, tr("Matched"), tr("SHA-256 Hash Matched."));
     else
         QMessageBox::warning(this, tr("Not match"), tr("Hash does not match !"));
 }
@@ -115,6 +130,7 @@ void Md5Calculator::onThreadEnded()
     ui->uiBrowseBtn->setEnabled(true);
     ui->uiCopyMD5Btn->setEnabled(true);
     ui->uiCopySHA1Btn->setEnabled(true);
+    ui->uiCopySHA256Btn->setEnabled(true);
     ui->uiVerifyBtn->setEnabled(true);
     ui->uiCancelBtn->setEnabled(false);
     ui->uiPasteBtn->setEnabled(true);
@@ -142,6 +158,11 @@ void Md5Calculator::onMD5HashReceived(QString qstrHash)
 void Md5Calculator::onSHA1HashReceived(QString qstrHash)
 {
     ui->uiSHA1->setText(qstrHash);
+}
+
+void Md5Calculator::onSHA256HashReceived(QString qstrHash)
+{
+    ui->uiSHA256->setText(qstrHash);
 }
 
 Md5Calculator::~Md5Calculator()
@@ -176,7 +197,9 @@ void WorkThread::run()
     // Generate MD5 and SHA1 hash
     MD5 MD5Object;
     CSHA1 sha1;
-
+    
+    SHA256 sha256;
+    sha256.init();
     // old method to generate MD5 hash : not suitable for big files...
     //QByteArray packet = file.readAll();
     //MD5Object.update(packet.data(),packet.size());
@@ -197,6 +220,7 @@ void WorkThread::run()
         {
             MD5Object.update(pFileBuffer, uRead);
             sha1.Update(reinterpret_cast<const unsigned char*>(pFileBuffer), uRead);
+            sha256.update(reinterpret_cast<const unsigned char*>(pFileBuffer), uRead);
         }
 
         // Update progress bar...
@@ -213,6 +237,13 @@ void WorkThread::run()
         // Finalize both hashes
         MD5Object.finalize();
         sha1.Final();
+        
+        unsigned char sha256Digest[SHA256::DIGEST_SIZE] = { 0 };
+        sha256.final(sha256Digest);
+        char buf[2 * SHA256::DIGEST_SIZE + 1];
+        buf[2 * SHA256::DIGEST_SIZE] = 0;
+        for (unsigned int i = 0; i < SHA256::DIGEST_SIZE; i++)
+            std::sprintf(buf + i * 2, "%02x", sha256Digest[i]);
 
         // Emit to the GUI computed MD5 hash
         std::string strHash = MD5Object.hexdigest();
@@ -222,6 +253,8 @@ void WorkThread::run()
         strHash.clear();
         sha1.ReportHashStl(strHash, CSHA1::REPORT_HEX_SHORT);
         emit SHA1Hash(QString::fromLocal8Bit(strHash.c_str()).toUpper());
+        
+        emit SHA256Hash(QString::fromLocal8Bit(buf).toUpper());
     }
 
     file.close();
